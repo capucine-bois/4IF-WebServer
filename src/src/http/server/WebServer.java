@@ -5,10 +5,11 @@ package src.http.server;
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.Date;
 import java.util.StringTokenizer;
 
 public class WebServer {
-  static final File INIT_DIR = new File("./doc");
+  static final File INIT_DIR = new File("/doc/");
 
   protected void start() {
     ServerSocket s;
@@ -36,23 +37,31 @@ public class WebServer {
         BufferedOutputStream dataOut = new BufferedOutputStream(remote.getOutputStream());
         String str = ".";
 
+        int i =0;
+        String requestMethod = null;
+        StringTokenizer lineClient;
+        String header ="";
         while (str != null && !str.equals("")) {
-          //requete tapée par l'utilisateur
           str = in.readLine();
-          // we parse the request with a string tokenizer
-          StringTokenizer lineClient = new StringTokenizer(str);
-          String requestMethod = lineClient.nextToken().toUpperCase(); // we get the HTTP method of the client
-          // we get file requested
-          fileName = lineClient.nextToken().toLowerCase();
+          if(i==0) {
+            // we parse the request with a string tokenizer
+            lineClient = new StringTokenizer(str);
+            requestMethod = lineClient.nextToken().toUpperCase(); // we get the HTTP method of the client
+            // we get file requested
+            fileName = lineClient.nextToken().toLowerCase();
+          }
+          //requete tapée par l'utilisateur
+          i++;
+          header += str + "\n\r";
+        }
 
           System.out.println("REQUEST :");
-          System.out.println(str);
+          System.out.println(header);
 
-          if (!str.isEmpty()) {
-
+          if (!header.isEmpty()) {
             switch(requestMethod) {
               case "GET":
-                executeGETmethod(fileName, out);
+                executeGETmethod(fileName, out, dataOut);
                 break;
               case "POST":
                 // code block
@@ -61,21 +70,7 @@ public class WebServer {
                 //erreur
                 break;
             }
-
-
           }
-
-          // Send the response
-          // Send the headers
-          out.println("HTTP/1.0 200 OK");
-          //out.println("Content-Type: text/html");
-          //out.println("Server: Bot");
-          // this blank line signals the end of the headers
-          out.println("");
-          // Send the HTML page
-          out.println("<H1>Welcome to the Ultra Mini-WebServer</H2>");
-        }
-
         out.flush();
         remote.close();
       } catch (Exception e) {
@@ -84,27 +79,98 @@ public class WebServer {
     }
   }
 
-  public void executeGETmethod(String fileName, BufferedOutputStream out){
-    File file = new File(fileName);
-    int fileLength = (int) file.length();
-    String extension = null;
-    int extensionPos = fileName.lastIndexOf('.');
-    if(extensionPos > 0){
-      extension.substring(extensionPos+1);
+  public void executeGETmethod(String fileName, PrintWriter out, BufferedOutputStream dataOut) throws IOException {
+    if(fileName.equals("/"))
+    {
+      fileName=INIT_DIR + "index.html";
+    }else{
+      fileName = INIT_DIR + fileName;
     }
 
-    String content = getTypeFromExtension(extension);
+    File file = new File(fileName);
+    int fileLength = 0;
+    String codeStatus = "OK 200", extension = "";
+    byte[] fileData;
 
+    if (!file.exists()) {
+      codeStatus = "Error 404";
+    } else {
+      fileLength = (int) file.length();
+      extension = null;
+      int extensionPos = fileName.lastIndexOf('.');
+      if (extensionPos > 0) {
+        extension.substring(extensionPos + 1);
+      } else {
+        codeStatus = "Error 404";
+      }
+    }
+    String content = getTypeFromExtension(extension) + "/" + extension;
+    printHeader(content, codeStatus, fileLength, out);
 
-
-
+    if(codeStatus.equals("OK 200")){
+      fileData = readData(file);
+      dataOut.write(fileData, 0,fileLength);
+      dataOut.flush();
+    }
   }
+
+
+  public byte[] readData(File file) throws IOException {
+    int lengthFile= (int) file.length();
+    FileInputStream dataStream = null;
+    byte[] dataArray = new byte[lengthFile];
+    try{
+      dataStream = new FileInputStream(file);
+      dataStream.read(dataArray);
+    } finally {
+      if (dataStream != null) dataStream.close();
+    }
+    return dataArray;
+  }
+
 
   public String getTypeFromExtension(String extension){
     String type ="";
-
+  switch (extension) {
+    case "jpg" :
+    case "jpeg" :
+    case "gif" :
+    case "png" :
+    case "bmp" :
+      type = "image";
+      break;
+    case "mp4" :
+      type = "video";
+      break;
+    case"txt" :
+    case "docx" :
+    case "doc" :
+    case "pdf" :
+    case "md" :
+    case "html":
+      type = "text";
+      break;
+    default :
+      type = "unknown";
+      break;
+    }
     return  type;
   }
+
+  public void printHeader(String content, String status, int length, PrintWriter out) {
+    if(status.equals("OK 200")) {
+      out.println("HTTP/1.1 200 OK");
+      out.println("Server: Java HTTP Server from Capucine and Arthur : 1.0");
+      out.println("Date: " + new Date());
+      out.println("Content-type: " + content);
+      out.println("Content-length: " + length);
+    } else {
+      out.println("HTTP/1.1 " + status);
+    }
+    out.println();
+    out.flush();
+  }
+
   /**
    * Start the application.
    * 
