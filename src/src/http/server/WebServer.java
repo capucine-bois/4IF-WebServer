@@ -15,6 +15,8 @@ public class WebServer {
     String fileName = null;
     System.out.println("Webserver starting up on port 3000");
     System.out.println("(press ctrl-c to exit)");
+    System.out.println(System.getProperty("user.dir"));
+  ;
     try {
       // create the main server socket
       s = new ServerSocket(3000);
@@ -80,10 +82,9 @@ public class WebServer {
 
   public void executeGETmethod(String fileName, PrintWriter out, BufferedOutputStream dataOut) throws IOException {
     if(fileName.equals("/")) {
-      fileName = "/index.html";
+      fileName = "index.html";
     }
     System.out.println("le file est " + fileName);
-
     File file = new File(fileName);
     int fileLength = 0;
     String codeStatus = "OK 200", extension = "";
@@ -97,7 +98,7 @@ public class WebServer {
       extension = null;
       int extensionPos = fileName.lastIndexOf('.');
       if (extensionPos > 0) {
-        extension.substring(extensionPos + 1);
+        extension = fileName.substring(extensionPos + 1);
       } else {
         codeStatus = "Error 404";
         System.out.println("103 err 404");
@@ -154,6 +155,7 @@ public class WebServer {
       type = "unknown";
       break;
     }
+    System.out.println("le type est " + type);
     return  type;
   }
 
