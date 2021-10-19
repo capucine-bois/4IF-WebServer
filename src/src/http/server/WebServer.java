@@ -17,8 +17,6 @@ public class WebServer {
     String fileName = null;
     System.out.println("Webserver starting up on port 3000");
     System.out.println("(press ctrl-c to exit)");
-    System.out.println(System.getProperty("user.dir"));
-  ;
     try {
       // create the main server socket
       s = new ServerSocket(3000);
@@ -58,7 +56,7 @@ public class WebServer {
           header += str + "\n\r";
         }
 
-          System.out.println("REQUEST :");
+          System.out.println("REQUEST CLIENT:");
           System.out.println(header);
 
           if (!header.isEmpty()) {
@@ -66,8 +64,8 @@ public class WebServer {
               case "GET":
                 executeGETmethod(fileName, out, dataOut);
                 break;
-              case "POST":
-                // code block
+              case "HEAD":
+                executeHEADmethod(fileName, out, dataOut);
                 break;
               default:
                 //erreur
@@ -88,7 +86,6 @@ public class WebServer {
     }else{
       fileName= INIT_DIR + fileName;
     }
-    System.out.println("le file est " + fileName);
     File file = new File(fileName);
     int fileLength = 0;
     String codeStatus = "OK 200", extension = "";
@@ -96,7 +93,7 @@ public class WebServer {
 
     if (!file.exists()) {
       codeStatus = "Error 404";
-      System.out.println("error 404 94");
+      file = new File("error404.html");
     } else {
       fileLength = (int) file.length();
       extension = null;
@@ -105,17 +102,15 @@ public class WebServer {
         extension = fileName.substring(extensionPos + 1);
       } else {
         codeStatus = "Error 404";
-        System.out.println("103 err 404");
       }
     }
+
     String content = getTypeFromExtension(extension) + "/" + extension;
     printHeader(content, codeStatus, fileLength, out);
 
-    if(codeStatus.equals("OK 200")){
-      fileData = readData(file);
-      dataOut.write(fileData, 0,fileLength);
-      dataOut.flush();
-    }
+    fileData = readData(file);
+    dataOut.write(fileData, 0,fileLength);
+    dataOut.flush();
   }
 
 
@@ -178,12 +173,34 @@ public class WebServer {
     out.flush();
   }
 
-  /**
-   * Start the application.
-   * 
-   * @param args
-   *            Command line parameters are not used.
-   */
+ public void executeHEADmethod(String fileName, PrintWriter out, BufferedOutputStream dataOut){
+   if(fileName.equals("/")) {
+     fileName = INIT_DIR + "index.html";
+   }else{
+     fileName= INIT_DIR + fileName;
+   }
+   File file = new File(fileName);
+   int fileLength = 0;
+   String codeStatus = "OK 200", extension = "";
+
+   if (!file.exists()) {
+     codeStatus = "Error 404";
+   } else {
+     fileLength = (int) file.length();
+     extension = null;
+     int extensionPos = fileName.lastIndexOf('.');
+     if (extensionPos > 0) {
+       extension = fileName.substring(extensionPos + 1);
+     } else {
+       codeStatus = "Error 404";
+     }
+   }
+   String content = getTypeFromExtension(extension) + "/" + extension;
+   printHeader(content, codeStatus, fileLength, out);
+ }
+
+
+
   public static void main(String args[]) {
     WebServer ws = new WebServer();
     ws.start();
