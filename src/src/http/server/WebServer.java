@@ -9,7 +9,6 @@ import java.util.Date;
 import java.util.StringTokenizer;
 
 public class WebServer {
-  static final File INIT_DIR = new File("/doc/");
 
   protected void start() {
     ServerSocket s;
@@ -80,12 +79,10 @@ public class WebServer {
   }
 
   public void executeGETmethod(String fileName, PrintWriter out, BufferedOutputStream dataOut) throws IOException {
-    if(fileName.equals("/"))
-    {
-      fileName=INIT_DIR + "index.html";
-    }else{
-      fileName = INIT_DIR + fileName;
+    if(fileName.equals("/")) {
+      fileName = "/index.html";
     }
+    System.out.println("le file est " + fileName);
 
     File file = new File(fileName);
     int fileLength = 0;
@@ -94,6 +91,7 @@ public class WebServer {
 
     if (!file.exists()) {
       codeStatus = "Error 404";
+      System.out.println("error 404 94");
     } else {
       fileLength = (int) file.length();
       extension = null;
@@ -102,6 +100,7 @@ public class WebServer {
         extension.substring(extensionPos + 1);
       } else {
         codeStatus = "Error 404";
+        System.out.println("103 err 404");
       }
     }
     String content = getTypeFromExtension(extension) + "/" + extension;
@@ -116,6 +115,7 @@ public class WebServer {
 
 
   public byte[] readData(File file) throws IOException {
+    System.out.println("on entre dans read data");
     int lengthFile= (int) file.length();
     FileInputStream dataStream = null;
     byte[] dataArray = new byte[lengthFile];
@@ -164,6 +164,7 @@ public class WebServer {
       out.println("Date: " + new Date());
       out.println("Content-type: " + content);
       out.println("Content-length: " + length);
+      System.out.println("on est bien passé dans le bon if du rint header");
     } else {
       out.println("HTTP/1.1 " + status);
     }
