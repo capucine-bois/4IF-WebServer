@@ -69,7 +69,8 @@ public class WebServer {
                 executeHEADmethod(fileName, out, dataOut);
                 break;
               case "POST":
-                executePOSTmethode(fileName, out, dataOut, fluxIn);
+                //executePOSTmethode(fileName, out, dataOut, fluxIn);
+                executePOSTmethod(fileName, out, dataOut, in);
                 break;
               default:
                 //erreur
@@ -196,7 +197,7 @@ public class WebServer {
   }
 
 
-  public void executePOSTmethode(String fileName, PrintWriter out, BufferedOutputStream dataOut, BufferedInputStream in) throws IOException {
+  /*public void executePOSTmethode(String fileName, PrintWriter out, BufferedOutputStream dataOut, BufferedInputStream in) throws IOException {
     /*int fileLength = 0;
     File file = new File("");
     buildHeader(fileName, out, dataOut, file, fileLength, false);*/
@@ -224,7 +225,7 @@ public class WebServer {
     }
 
     String content = getTypeFromExtension(extension) + "/" + extension;
-    printHeader(content, codeStatus, fileLength, out, fileName);*/
+    printHeader(content, codeStatus, fileLength, out, fileName);
 
     File file = new File(fileName);
 
@@ -248,10 +249,39 @@ public class WebServer {
     fileOut.close();
 
 
+  }*/
+
+
+
+
+
+
+  public void executePOSTmethod(String fileNameToWrite, PrintWriter out, BufferedOutputStream dataOut, BufferedReader in) throws IOException {
+    File file = new File("src/doc/"+ fileNameToWrite.substring(1));
+    int i= 0;
+    String detailsRequest=null;
+    while(i!=2){
+      detailsRequest=in.readLine();
+      System.out.println(detailsRequest);
+      i++;
+    }
+    String[] fileNameCopy = detailsRequest.split("filename=");
+    String fileToCopy = fileNameCopy[1].substring(1, fileNameCopy[1].length()-1);
+    BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(file));
+    BufferedInputStream bis = new BufferedInputStream(new FileInputStream("src/doc/"+fileToCopy));
+    int j;
+    // read byte by byte until end of stream
+    while ((j = bis.read()) > 0) {
+      bos.write(j);
+    }
+    bis.close();
+    bos.close();
+
   }
 
 
-  public static void main(String args[]) {
+
+    public static void main(String args[]) {
     WebServer ws = new WebServer();
     ws.start();
   }
