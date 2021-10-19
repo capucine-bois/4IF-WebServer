@@ -9,9 +9,11 @@ import java.util.Date;
 import java.util.StringTokenizer;
 
 public class WebServer {
+  static final String INIT_DIR= "src/doc/";
 
   protected void start() {
     ServerSocket s;
+
     String fileName = null;
     System.out.println("Webserver starting up on port 3000");
     System.out.println("(press ctrl-c to exit)");
@@ -82,7 +84,9 @@ public class WebServer {
 
   public void executeGETmethod(String fileName, PrintWriter out, BufferedOutputStream dataOut) throws IOException {
     if(fileName.equals("/")) {
-      fileName = "index.html";
+      fileName = INIT_DIR + "index.html";
+    }else{
+      fileName= INIT_DIR + fileName;
     }
     System.out.println("le file est " + fileName);
     File file = new File(fileName);
