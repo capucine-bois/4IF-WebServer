@@ -9,7 +9,7 @@ import java.util.Date;
 import java.util.StringTokenizer;
 
 public class WebServer {
-  static final String INIT_DIR= "src/doc/";
+  static final String INIT_DIR= "src/doc";
 
   protected void start() {
     ServerSocket s;
@@ -80,54 +80,6 @@ public class WebServer {
     }
   }
 
-  public void executeGETmethod(String fileName, PrintWriter out, BufferedOutputStream dataOut) throws IOException {
-    if(fileName.equals("/")) {
-      fileName = INIT_DIR + "index.html";
-    }else{
-      fileName= INIT_DIR + fileName;
-    }
-    File file = new File(fileName);
-    int fileLength = 0;
-    String codeStatus = "OK 200", extension = "";
-    byte[] fileData;
-
-    if (!file.exists()) {
-      codeStatus = "Error 404";
-      file = new File("error404.html");
-    } else {
-      fileLength = (int) file.length();
-      extension = null;
-      int extensionPos = fileName.lastIndexOf('.');
-      if (extensionPos > 0) {
-        extension = fileName.substring(extensionPos + 1);
-      } else {
-        codeStatus = "Error 404";
-      }
-    }
-
-    String content = getTypeFromExtension(extension) + "/" + extension;
-    printHeader(content, codeStatus, fileLength, out);
-
-    fileData = readData(file);
-    dataOut.write(fileData, 0,fileLength);
-    dataOut.flush();
-  }
-
-
-  public byte[] readData(File file) throws IOException {
-    System.out.println("on entre dans read data");
-    int lengthFile= (int) file.length();
-    FileInputStream dataStream = null;
-    byte[] dataArray = new byte[lengthFile];
-    try{
-      dataStream = new FileInputStream(file);
-      dataStream.read(dataArray);
-    } finally {
-      if (dataStream != null) dataStream.close();
-    }
-    return dataArray;
-  }
-
 
   public String getTypeFromExtension(String extension){
     String type ="";
@@ -158,47 +110,122 @@ public class WebServer {
     return  type;
   }
 
-  public void printHeader(String content, String status, int length, PrintWriter out) {
-    if(status.equals("OK 200")) {
-      out.println("HTTP/1.1 200 OK");
-      out.println("Server: Java HTTP Server from Capucine and Arthur : 1.0");
-      out.println("Date: " + new Date());
-      out.println("Content-type: " + content);
-      out.println("Content-length: " + length);
-      System.out.println("on est bien passé dans le bon if du rint header");
-    } else {
-      out.println("HTTP/1.1 " + status);
+
+  public void executeGETmethod(String fileName, PrintWriter out, BufferedOutputStream dataOut) throws IOException {
+    int fileLength = 0;
+    File file = new File("");
+    System.out.println("le nom de fichier avant l'appel à build est " + fileName);
+    buildHeader(fileName, out, dataOut, file, fileLength, true);
+
+
+/*
+    if(fileName.equals("/")) {
+      fileName = INIT_DIR + "/index.html";
+    }else{
+      fileName= INIT_DIR + fileName;
     }
-    out.println();
-    out.flush();
+    file = new File(fileName);
+    String codeStatus = "OK 200", extension = "";
+    if (!file.exists()) {
+      codeStatus = "404 not found";
+      fileName = INIT_DIR + "/error404.html";
+      file = new File(fileName);
+    }
+    fileLength = (int) file.length();
+    extension = null;
+    int extensionPos = fileName.lastIndexOf('.');
+    if (extensionPos > 0) {
+      extension = fileName.substring(extensionPos + 1);
+    } else { // pas sûr de vraiment pouvoir passer là
+      codeStatus = "404 not found";
+    }
+
+    String content = getTypeFromExtension(extension) + "/" + extension;
+    printHeader(content, codeStatus, fileLength, out, fileName);*/
+
+
+
+
+
+
+
+
+
+
   }
 
- public void executeHEADmethod(String fileName, PrintWriter out, BufferedOutputStream dataOut){
+
+ public void executeHEADmethod(String fileName, PrintWriter out, BufferedOutputStream dataOut) throws IOException {
+   int fileLength = 0;
+   File file = new File("");
+   buildHeader(fileName, out, dataOut, file, fileLength, false);
+
+ }
+
+
+ public void buildHeader(String fileName, PrintWriter out, BufferedOutputStream dataOut, File file, int fileLength,boolean get) throws IOException {
    if(fileName.equals("/")) {
-     fileName = INIT_DIR + "index.html";
+     fileName = INIT_DIR + "/index.html";
    }else{
      fileName= INIT_DIR + fileName;
    }
-   File file = new File(fileName);
-   int fileLength = 0;
+   file = new File(fileName);
    String codeStatus = "OK 200", extension = "";
-
    if (!file.exists()) {
-     codeStatus = "Error 404";
-   } else {
-     fileLength = (int) file.length();
-     extension = null;
-     int extensionPos = fileName.lastIndexOf('.');
-     if (extensionPos > 0) {
-       extension = fileName.substring(extensionPos + 1);
-     } else {
-       codeStatus = "Error 404";
-     }
+     codeStatus = "404 not found";
+     fileName = INIT_DIR + "/error404.html";
+     file = new File(fileName);
    }
+   fileLength = (int) file.length();
+   extension = null;
+   int extensionPos = fileName.lastIndexOf('.');
+   if (extensionPos > 0) {
+     extension = fileName.substring(extensionPos + 1);
+   } else { // pas sûr de vraiment pouvoir passer là
+     codeStatus = "404 not found";
+   }
+
    String content = getTypeFromExtension(extension) + "/" + extension;
-   printHeader(content, codeStatus, fileLength, out);
+   printHeader(content, codeStatus, fileLength, out, fileName);
+
+
+   if(get) {
+     byte[] fileData = readData(file);
+     dataOut.write(fileData, 0,fileLength);
+     dataOut.flush();
+   }
+
+
+
  }
 
+
+  public byte[] readData(File file) throws IOException {
+    int lengthFile= (int) file.length();
+    FileInputStream dataStream = null;
+    byte[] dataArray = new byte[lengthFile];
+    try{
+      dataStream = new FileInputStream(file);
+      dataStream.read(dataArray);
+    } finally {
+      if (dataStream != null) dataStream.close();
+    }
+    System.out.println(dataArray);
+    return dataArray;
+  }
+
+
+
+  public void printHeader(String content, String status, int length, PrintWriter out, String fileName) {
+    out.println("HTTP/1.1 " +status);
+    out.println("Server: Java HTTP Server from Capucine and Arthur : 1.0");
+    out.println("Date: " + new Date());
+    out.println("Content-type: " + content);
+    out.println("Content-length: " + length);
+    out.println("Content-name: " + fileName);
+    out.println();
+    out.flush();
+  }
 
 
   public static void main(String args[]) {
