@@ -57,25 +57,25 @@ public class WebServer {
           header += str + "\n\r";
         }
 
-          System.out.println("REQUEST CLIENT:");
-          System.out.println(header);
+        System.out.println("REQUEST CLIENT:");
+        System.out.println(header);
 
-          if (!header.isEmpty()) {
-            switch(requestMethod) {
-              case "GET":
-                executeGETmethod(fileName, out, dataOut);
-                break;
-              case "HEAD":
-                executeHEADmethod(fileName, out, dataOut);
-                break;
-              case "POST":
-                executePOSTmethode(fileName, out, dataOut, fluxIn);
-                break;
-              default:
-                //erreur
-                break;
-            }
+        if (!header.isEmpty()) {
+          switch(requestMethod) {
+            case "GET":
+              executeGETmethod(fileName, out, dataOut);
+              break;
+            case "HEAD":
+              executeHEADmethod(fileName, out, dataOut);
+              break;
+            case "POST":
+              executePOSTmethod(fileName, out, dataOut, in);
+              break;
+            default:
+              //erreur
+              break;
           }
+        }
         out.flush();
         remote.close();
       } catch (Exception e) {
@@ -87,28 +87,28 @@ public class WebServer {
 
   public String getTypeFromExtension(String extension){
     String type ="";
-  switch (extension) {
-    case "jpg" :
-    case "jpeg" :
-    case "gif" :
-    case "png" :
-    case "bmp" :
-      type = "image";
-      break;
-    case "mp4" :
-      type = "video";
-      break;
-    case"txt" :
-    case "docx" :
-    case "doc" :
-    case "pdf" :
-    case "md" :
-    case "html":
-      type = "text";
-      break;
-    default :
-      type = "unknown";
-      break;
+    switch (extension) {
+      case "jpg" :
+      case "jpeg" :
+      case "gif" :
+      case "png" :
+      case "bmp" :
+        type = "image";
+        break;
+      case "mp4" :
+        type = "video";
+        break;
+      case"txt" :
+      case "docx" :
+      case "doc" :
+      case "pdf" :
+      case "md" :
+      case "html":
+        type = "text";
+        break;
+      default :
+        type = "unknown";
+        break;
     }
     System.out.println("le type est " + type);
     return  type;
@@ -123,49 +123,46 @@ public class WebServer {
   }
 
 
- public void executeHEADmethod(String fileName, PrintWriter out, BufferedOutputStream dataOut) throws IOException {
-   int fileLength = 0;
-   File file = new File("");
-   buildHeader(fileName, out, dataOut, file, fileLength, false);
+  public void executeHEADmethod(String fileName, PrintWriter out, BufferedOutputStream dataOut) throws IOException {
+    int fileLength = 0;
+    File file = new File("");
+    buildHeader(fileName, out, dataOut, file, fileLength, false);
 
- }
-
-
- public void buildHeader(String fileName, PrintWriter out, BufferedOutputStream dataOut, File file, int fileLength,boolean get) throws IOException {
-   if(fileName.equals("/")) {
-     fileName = INIT_DIR + "/index.html";
-   }else{
-     fileName= INIT_DIR + fileName;
-   }
-   file = new File(fileName);
-   String codeStatus = "OK 200", extension = "";
-   if (!file.exists()) {
-     codeStatus = "404 not found";
-     fileName = INIT_DIR + "/error404.html";
-     file = new File(fileName);
-   }
-   fileLength = (int) file.length();
-   extension = null;
-   int extensionPos = fileName.lastIndexOf('.');
-   if (extensionPos > 0) {
-     extension = fileName.substring(extensionPos + 1);
-   } else { // pas sûr de vraiment pouvoir passer là
-     codeStatus = "404 not found";
-   }
-
-   String content = getTypeFromExtension(extension) + "/" + extension;
-   printHeader(content, codeStatus, fileLength, out, fileName);
+  }
 
 
-   if(get) {
-     byte[] fileData = readData(file);
-     dataOut.write(fileData, 0,fileLength);
-     dataOut.flush();
-   }
+  public void buildHeader(String fileName, PrintWriter out, BufferedOutputStream dataOut, File file, int fileLength,boolean get) throws IOException {
+    if(fileName.equals("/")) {
+      fileName = INIT_DIR + "/index.html";
+    }else{
+      fileName= INIT_DIR + fileName;
+    }
+    file = new File(fileName);
+    String codeStatus = "OK 200", extension = "";
+    if (!file.exists()) {
+      codeStatus = "404 not found";
+      fileName = INIT_DIR + "/error404.html";
+      file = new File(fileName);
+    }
+    fileLength = (int) file.length();
+    extension = null;
+    int extensionPos = fileName.lastIndexOf('.');
+    if (extensionPos > 0) {
+      extension = fileName.substring(extensionPos + 1);
+    } else { // pas sûr de vraiment pouvoir passer là
+      codeStatus = "404 not found";
+    }
+
+    String content = getTypeFromExtension(extension) + "/" + extension;
+    printHeader(content, codeStatus, fileLength, out, fileName);
 
 
-
- }
+    if(get) {
+      byte[] fileData = readData(file);
+      dataOut.write(fileData, 0,fileLength);
+      dataOut.flush();
+    }
+  }
 
 
   public byte[] readData(File file) throws IOException {
@@ -195,58 +192,29 @@ public class WebServer {
     out.flush();
   }
 
-
-  public void executePOSTmethode(String fileName, PrintWriter out, BufferedOutputStream dataOut, BufferedInputStream in) throws IOException {
-    /*int fileLength = 0;
-    File file = new File("");
-    buildHeader(fileName, out, dataOut, file, fileLength, false);*/
-    /*File file = new File("");
-    int fileLength = 0;
-    if(fileName.equals("/")) {
-      fileName = INIT_DIR + "/index.html";
-    }else{
-      fileName= INIT_DIR + fileName;
+  public void executePOSTmethod(String fileNameToWrite, PrintWriter out, BufferedOutputStream dataOut, BufferedReader in) throws IOException {
+    File file = new File("src/doc/"+ fileNameToWrite.substring(1));
+    int i= 0;
+    String detailsRequest=null;
+    while(i!=2){
+      detailsRequest=in.readLine();
+      System.out.println(detailsRequest);
+      i++;
     }
-    file = new File(fileName);
-    String codeStatus = "OK 200", extension = "";
-    if (!file.exists()) {
-      codeStatus = "404 not found";
-      fileName = INIT_DIR + "/error404.html";
-      file = new File(fileName);
+    String[] fileNameCopy = detailsRequest.split("filename=");
+    String fileToCopy = fileNameCopy[1].substring(1, fileNameCopy[1].length()-1);
+    BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(file));
+    BufferedInputStream bis = new BufferedInputStream(new FileInputStream("src/doc/"+fileToCopy));
+    int j;
+    // read byte by byte until end of stream
+    while ((j = bis.read()) > 0) {
+      System.out.println("1");
+      bos.write(j);
     }
-    fileLength = (int) file.length();
-    extension = null;
-    int extensionPos = fileName.lastIndexOf('.');
-    if (extensionPos > 0) {
-      extension = fileName.substring(extensionPos + 1);
-    } else { // pas sûr de vraiment pouvoir passer là
-      codeStatus = "404 not found";
-    }
+    bis.close();
+    bos.close();
 
-    String content = getTypeFromExtension(extension) + "/" + extension;
-    printHeader(content, codeStatus, fileLength, out, fileName);*/
-
-    File file = new File(fileName);
-
-    boolean existed = file.exists();
-
-    // Ouverture d'un flux d'�criture binaire vers le fichier, en mode insertion � la fin
-    BufferedOutputStream fileOut = new BufferedOutputStream(new FileOutputStream(file, existed));
-
-    //byte[] fileData = readData(file);
-    byte[] fileData = new byte[256];
-    while(in.available() > 0) {
-      int nbRead = in.read(fileData);
-      fileOut.write(fileData, 0, nbRead);
-    }
-    //fileOut.write(fileData, 0, (int)file.length());
-
-    //fileOut.write(fileData, 0, fileLength);
-    fileOut.flush();
-
-    //Fermeture du flux d'�criture vers le fichier
-    fileOut.close();
-
+    System.exit(0);
 
   }
 
