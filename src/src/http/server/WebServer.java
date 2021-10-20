@@ -15,7 +15,6 @@ public class WebServer {
 
     protected void start() {
         ServerSocket s;
-        String fileName = null;
         System.out.println("Webserver starting up on port 3000");
         System.out.println("(press ctrl-c to exit)");
         try {
@@ -57,16 +56,16 @@ public class WebServer {
                             executeGETmethod(resourceRequested, dataOut, out);
                             break;
                         case "HEAD":
-                            executeHEADmethod(resourceRequested, dataOut, out);
+                            executeHEADmethod(resourceRequested, out);
                             break;
                         case "POST":
                             executePOSTmethod(in, dataOut, resourceRequested, out);
                             break;
                         case "PUT":
-                            executePUTmethod(in, dataOut, resourceRequested, out);
+                            executePUTmethod(in, resourceRequested, out);
                             break;
                         case "DELETE":
-                            executeDELETEmethod(in, dataOut, resourceRequested, out);
+                            executeDELETEmethod(dataOut, resourceRequested, out);
                         default:
                             //erreur
                             break;
@@ -118,7 +117,7 @@ public class WebServer {
     }
 
     // execute la requete selon la methode head
-    public void executeHEADmethod(String fileName, BufferedOutputStream dataOut, PrintWriter out) throws IOException {
+    public void executeHEADmethod(String fileName, PrintWriter out) throws IOException {
         buildHeaderGetandPost(fileName, out);
     }
 
@@ -134,15 +133,15 @@ public class WebServer {
     }
 
     // Execution de la methode put
-    public void executePUTmethod(BufferedInputStream in, BufferedOutputStream dataOut, String fileName, PrintWriter out) {
+    public void executePUTmethod(BufferedInputStream in, String fileName, PrintWriter out) {
         // création du header et écrasement du fichier
         buildHeaderPutAndPost(in, fileName, out, true);
     }
 
     // execution de la méthode delete
-    public void executeDELETEmethod(BufferedInputStream in, BufferedOutputStream dataOut, String fileName, PrintWriter out) {
+    public void executeDELETEmethod(BufferedOutputStream dataOut, String fileName, PrintWriter out) {
         try {
-            String codeStatus = "";
+            String codeStatus;
             File file = new File(fileName);
             boolean alreadyHere = file.exists();
             // succes de la suppresion fu fichier
@@ -213,7 +212,6 @@ public class WebServer {
             file = new File(fileName);
         }
         int fileLength = (int) file.length();
-        extension = null;
         int extensionPos = fileName.lastIndexOf('.');
         if (extensionPos > 0) {
             extension = fileName.substring(extensionPos + 1);
@@ -232,7 +230,7 @@ public class WebServer {
     public File buildHeaderPutAndPost(BufferedInputStream in, String fileName, PrintWriter out, boolean put) {
         File file = null;
         try {
-            String codeStatus = "";
+            String codeStatus;
             file = new File(fileName);
             boolean alreadyHere = file.exists();
             // si la méthode est appelé pour construire le header d'une méthode put on écrase le fichier
@@ -281,7 +279,7 @@ public class WebServer {
     }
 
     // affiche le header dans le print writer out
-    public void printHeader(String content, String status, int length, PrintWriter out, String fileName) throws IOException {
+    public void printHeader(String content, String status, int length, PrintWriter out, String fileName) {
         String header = "HTTP/1.1 " + status + "\r\n";
         header += "Server: Java HTTP Server from Capucine and Arthur : 1.0" + "\r\n";
         header += "Date: " + new Date() + "\r\n";
@@ -297,7 +295,7 @@ public class WebServer {
 
     // donne le type du fichier en fonction de son extension
     public String getTypeFromExtension(String extension) {
-        String type = "";
+        String type;
         switch (extension) {
             case "jpg":
             case "jpeg":
@@ -347,15 +345,11 @@ public class WebServer {
     }
 
     // on écrit les données récupérées au format byte pour les insérer dans le fichier en paramètre
-    private void writeData(File file, byte[] fileData, boolean exists) throws IOException {
-        FileOutputStream fileToModif = null;
-        try {
-            fileToModif = new FileOutputStream(file, exists);
+    private void writeData(File file, byte[] fileData, boolean exists) {
+        try (FileOutputStream fileToModif = new FileOutputStream(file, exists)) {
             fileToModif.write(fileData);
         } catch (Exception e) {
             e.printStackTrace();
-        } finally {
-            if (fileToModif != null) fileToModif.close();
         }
     }
 
