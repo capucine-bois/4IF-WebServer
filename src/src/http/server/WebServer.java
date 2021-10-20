@@ -15,7 +15,6 @@ public class WebServer {
 
     protected void start() {
         ServerSocket s;
-
         String fileName = null;
         System.out.println("Webserver starting up on port 3000");
         System.out.println("(press ctrl-c to exit)");
@@ -30,95 +29,52 @@ public class WebServer {
         System.out.println("Waiting for connection");
         for (; ; ) {
             try {
-                // wait for a connection
-                Socket remote = s.accept();
-                // remote is now the connected socket
+                // attente de connexion client
+                Socket socketClient = s.accept();
                 System.out.println("Connection, sending data.");
-                BufferedInputStream in = new BufferedInputStream(remote.getInputStream());
-                BufferedInputStream fluxIn = new BufferedInputStream(remote.getInputStream());
-                PrintWriter out = new PrintWriter(remote.getOutputStream());
-                // get binary output stream to client (for requested data)
-                BufferedOutputStream dataOut = new BufferedOutputStream(remote.getOutputStream());
-                /*String str = ".";
-
-                int i = 0;
-                String requestMethod = null;
-                StringTokenizer lineClient;
-                String header = "";
-                if (str != null && !str.equals("")) {
-
-                }*/
-                /*
-                int countEmpty = 0;
-                int compteur = 0;
-                boolean pass = false;
-                while (str != null && !str.equals("")) {
-                    if(pass)
-                        pass = false;
-                    str = in.readLine();
-                    if(str.equals("") && countEmpty==0) {
-                        if(requestMethod.equals("POST")) {
-                            str = ".";
-                            pass = true;
-                        }
-                        countEmpty++;
-                    }
-
-                    if (i == 0) {
-                        // we parse the request with a string tokenizer
-                        lineClient = new StringTokenizer(str);
-                        requestMethod = lineClient.nextToken().toUpperCase(); // we get the HTTP method of the client
-                        // we get file requested
-                        fileName = lineClient.nextToken().toLowerCase();
-                    }
-                        //requete tapée par l'utilisateur
-                    i++;
-                    if(!pass)
-                        header += str + "\n\r";
-                    //}
-
-
-                }*/
-
+                // flux d'entrée du serveur
+                BufferedInputStream in = new BufferedInputStream(socketClient.getInputStream());
+                // Permet d'écrire dans le header
+                PrintWriter out = new PrintWriter(socketClient.getOutputStream());
+                // le buffer dans lequel on écrit le body qu'on affiche au client
+                BufferedOutputStream dataOut = new BufferedOutputStream(socketClient.getOutputStream());
 
                 List<String> headers = parseHTTPHeaders(in);
 
-                    System.out.println("Request Header:");
-                    System.out.println(headers.get(0));
+                // Affichage du header de la requête du client
+                System.out.println("Request Header:");
+                System.out.println(headers.get(0));
 
-                    StringTokenizer parse = new StringTokenizer(headers.get(0));
-                    String methodRequested = parse.nextToken().toUpperCase();
-                    String resourceRequested = parse.nextToken().toLowerCase().substring(1);
+                // Récupération de la méthode et de la ressource
+                StringTokenizer parse = new StringTokenizer(headers.get(0));
+                String methodRequested = parse.nextToken().toUpperCase();
+                String resourceRequested = parse.nextToken().toLowerCase().substring(1);
 
 
                 if (!headers.isEmpty()) {
                     System.out.println("on rentre dans le switch");
                     switch (methodRequested) {
                         case "GET":
-                            executeGETmethod(resourceRequested, out, dataOut);
+                            executeGETmethod(resourceRequested, dataOut, out);
                             break;
                         case "HEAD":
-                            executeHEADmethod(resourceRequested, out, dataOut);
+                            executeHEADmethod(resourceRequested, dataOut, out);
                             break;
                         case "POST":
-                            /*String[] fileNameCopy = header.split("filename=\"");
-                            String suiteContent = fileNameCopy[1];
-                            String[] followingFile = suiteContent.split("\"");*/
-                            //executePOSTmethode(fileName, out, dataOut, fluxIn);
-                            executePOSTmethod(in, out, dataOut, resourceRequested);
+                            executePOSTmethod(in, dataOut, resourceRequested, out);
                             break;
-                        case "PUT" :
-                            executePUTmethod(in, out, dataOut, resourceRequested);
+                        case "PUT":
+                            executePUTmethod(in, dataOut, resourceRequested, out);
                             break;
-                        case "DELETE" :
-                            executeDELETEmethod(in, out, dataOut, resourceRequested);
+                        case "DELETE":
+                            executeDELETEmethod(in, dataOut, resourceRequested, out);
                         default:
                             //erreur
                             break;
                     }
                 }
-                out.flush();
-                remote.close();
+                dataOut.flush();
+                socketClient.close();
             } catch (Exception e) {
                 System.out.println("Error: " + e);
             }
@@ -126,65 +82,76 @@ public class WebServer {
     }
 
 
+    // donne le type du fichier en fonction de son extension
     public String getTypeFromExtension(String extension) {
         String type = "";
         switch (extension) {
             case "jpg":
             case "jpeg":
+                type = "image/jpeg";
+                break;
             case "gif":
+                type = "image/gif";
+                break;
             case "png":
-            case "bmp":
-                type = "image";
+                type = "image/png";
                 break;
             case "mp4":
-                type = "video";
+                type = "video/mp4";
                 break;
-            case "txt":
             case "docx":
-            case "doc":
+                type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+                break;
             case "pdf":
+                type = "application/pdf";
+                break;
             case "md":
+                type = "text/markdown";
+                break;
             case "html":
-                type = "text";
+                type = "text/html";
                 break;
             default:
-                type = "unknown";
+                type = "text/plain";
                 break;
         }
         return type;
     }
 
-
-    public void executeGETmethod(String fileName, PrintWriter out, BufferedOutputStream dataOut) throws IOException {
-        int fileLength = 0;
-        File file = new File("");
-        buildHeader(fileName, out, dataOut, file, fileLength, true);
-
-    }
-
-
-    public void executeHEADmethod(String fileName, PrintWriter out, BufferedOutputStream dataOut) throws IOException {
-        int fileLength = 0;
-        File file = new File("");
-        buildHeader(fileName, out, dataOut, file, fileLength, false);
+    // execute la requete selon la methode get
+    public void executeGETmethod(String fileName, BufferedOutputStream dataOut, PrintWriter out) throws IOException {
+        // on récupère le fichier à afficher, que ce soit l'index, un html d'erreur ou le fichier spéicifié
+        // on construit également le header
+        File file = buildHeaderGetandPost(fileName, out);
+        byte[] fileData = readData(file);
+        dataOut.write(fileData, 0, (int) file.length());
+        dataOut.flush();
 
     }
 
+    // execute la requete selon la methode head
+    public void executeHEADmethod(String fileName, BufferedOutputStream dataOut, PrintWriter out) throws IOException {
 
-    public void buildHeader(String fileName, PrintWriter out, BufferedOutputStream dataOut, File file, int fileLength, boolean get) throws IOException {
+        buildHeaderGetandPost(fileName, out);
+    }
+
+    // Construction du header pour les méthodes get et head. Renvoie le fichier à afficher dans le cas de la méthode get
+    public File buildHeaderGetandPost(String fileName, PrintWriter out) throws IOException {
+        // si pas de fichier spécifié, on affiche index.html
         if (fileName.equals("/") || fileName.equals("")) {
-            fileName = INIT_DIR + "/index.html";
+            fileName = INIT_DIR + "index.html";
         } else {
             fileName = INIT_DIR + fileName;
         }
-        file = new File(fileName);
+        File file = new File(fileName);
         String codeStatus = "OK 200", extension = "";
+        // on vérifie que le fichier existe, sinon message d'erreur
         if (!file.exists()) {
             codeStatus = "404 not found";
             fileName = INIT_DIR + "error404.html";
             file = new File(fileName);
         }
-        fileLength = (int) file.length();
+        int fileLength = (int) file.length();
         extension = null;
         int extensionPos = fileName.lastIndexOf('.');
         if (extensionPos > 0) {
@@ -193,19 +160,14 @@ public class WebServer {
             codeStatus = "404 not found";
         }
 
-        String content = getTypeFromExtension(extension) + "/" + extension;
+        String content = getTypeFromExtension(extension);
+        // on affiche le headerr avec les infos récolotées
         printHeader(content, codeStatus, fileLength, out, fileName);
 
-
-        if (get) {
-            byte[] fileData = readData(file);
-            dataOut.write(fileData, 0, fileLength);
-            dataOut.flush();
-        }
-
-
+        return file;
     }
 
+    // on lit le fichier en paramètre et on le retourne sous forme de tableau de byte
     public byte[] readData(File file) throws IOException {
         int lengthFile = (int) file.length();
         FileInputStream dataStream = null;
@@ -216,70 +178,37 @@ public class WebServer {
         } finally {
             if (dataStream != null) dataStream.close();
         }
-        System.out.println(dataArray);
         return dataArray;
     }
 
-
-    public void printHeader(String content, String status, int length, PrintWriter out, String fileName) {
-        out.println("HTTP/1.1 " + status);
-        out.println("Server: Java HTTP Server from Capucine and Arthur : 1.0");
-        out.println("Date: " + new Date());
-        out.println("Content-type: " + content);
-        out.println("Content-length: " + length);
-        out.println("Content-name: " + fileName);
-        out.println();
+    // affiche le header dans le print writer out
+    public void printHeader(String content, String status, int length, PrintWriter out, String fileName) throws IOException {
+        String header = "HTTP/1.1 " + status + "\r\n";
+        header += "Server: Java HTTP Server from Capucine and Arthur : 1.0" + "\r\n";
+        header += "Date: " + new Date() + "\r\n";
+        if (!content.equals(""))
+            header += "Content-Type: " + content + "\r\n";
+        if (length != -1)
+            header += "Content-length: " + length + "\r\n";
+        if (!fileName.equals(""))
+            header += "Content-name: " + fileName + "\r\n";
+        out.println(header);
         out.flush();
     }
 
-    /*public void executePOSTmethod(String fileNameToWrite, PrintWriter out, BufferedOutputStream dataOut, BufferedReader in, String fileToCopy) throws IOException {
-        try {
-            File file = new File("src/doc/" + fileNameToWrite.substring(1));
-            String codeStatus = "";
-            boolean alreadyHere = file.exists();
-            if(!alreadyHere) {
-                codeStatus = "201 Created";
-            } else {
-                codeStatus = "200 OK";
-            }
 
-            BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(file, alreadyHere));
-            BufferedInputStream bis = new BufferedInputStream(new FileInputStream("src/doc/" + fileToCopy));
-            int j;
-            // read byte by byte until end of stream
-            while ((j = bis.read()) > 0) {
-                bos.write(j);
-            } bis.close();
-            bos.close();
-
-            int fileLength = (int) file.length();
-            String extension = null;
-            int extensionPos = fileNameToWrite.lastIndexOf('.');
-            if (extensionPos > 0) {
-                extension = fileNameToWrite.substring(extensionPos + 1);
-            }
-            String content = getTypeFromExtension(extension) + "/" + extension;
-            printHeader(content, codeStatus, fileLength, out, INIT_DIR + fileNameToWrite);
-
-            byte[] fileData = readData(file);
-            dataOut.write(fileData, 0, (int)file.length());
-            dataOut.flush();
-
-            dataOut.close();
-            dataOut.flush();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-
-    }*/
-
-    public void executePOSTmethod(BufferedInputStream in, PrintWriter out, BufferedOutputStream dataOut, String fileName) {
-        System.out.println("POST " + fileName);
+    // Execution de la méthode post
+    public void executePOSTmethod(BufferedInputStream in, BufferedOutputStream dataOut, String fileName, PrintWriter out) throws IOException {
+        File file = buildHeaderPutAndPost(in, fileName, out, false);
+        byte[] fileDataToPrint = readData(file);
+        dataOut.write(fileDataToPrint, 0, (int) file.length());
+        dataOut.flush();
+    }
+    /*public void executePOSTmethod(BufferedInputStream in, BufferedOutputStream dataOut, String fileName, PrintWriter out) {
         try {
             String codeStatus = "";
             File file = new File(fileName);
             boolean alreadyHere = file.exists();
-
             List<Byte> fileData = new ArrayList<>();
             while (in.available() > 0) {
                 fileData.add((byte) in.read());
@@ -297,36 +226,29 @@ public class WebServer {
                 codeStatus = "201 Created";
             }
             // creation du header
-            out.println("HTTP/1.1 " + codeStatus);
-            out.println("Server: Java HTTP Server from Capucine and Arthur : 1.0");
-            out.println("Date: " + new Date());
-            out.println();
-            out.flush();
+            printHeader("", codeStatus, -1, out, "");
             // on affiche le fichier dans lequel on a ecrit dans le body
             byte[] fileDataToPrint = readData(file);
-            dataOut.write(fileDataToPrint, 0, (int)file.length());
+            dataOut.write(fileDataToPrint, 0, (int) file.length());
             dataOut.flush();
 
         } catch (Exception e) {
             e.printStackTrace();
             try {
                 String codeStatus = "500 Internal Server Error";
-                out.println("HTTP/1.1 " + codeStatus);
-                out.println("Server: Java HTTP Server from Capucine and Arthur : 1.0");
-                out.println("Date: " + new Date());
-                out.println();
-                out.flush();
+                printHeader("", codeStatus, -1, out, "");
+
             } catch (Exception ex) {
                 ex.printStackTrace();
             }
-            ;
+
         }
-    }
+    }*/
 
 
+    //public void executePUTmethod() {}
 
-
-    public void executePUTmethod(BufferedInputStream in, PrintWriter out, BufferedOutputStream dataOut, String fileName) {
+    public void executePUTmethod(BufferedInputStream in, BufferedOutputStream dataOut, String fileName, PrintWriter out) {
         try {
             String codeStatus = "";
             File file = new File(fileName);
@@ -353,26 +275,18 @@ public class WebServer {
                 codeStatus = "201 Created";
             }
             // creation du header
-            out.println("HTTP/1.1 " + codeStatus);
-            out.println("Server: Java HTTP Server from Capucine and Arthur : 1.0");
-            out.println("Date: " + new Date());
-
-            out.println();
-            out.flush();
+            printHeader("", codeStatus, -1, out, "");
             // on affiche le fichier dans lequel on a ecrit dans le body
             byte[] fileDataToPrint = readData(file);
-            dataOut.write(fileDataToPrint, 0, (int)file.length());
+            dataOut.write(fileDataToPrint, 0, (int) file.length());
             dataOut.flush();
 
         } catch (Exception e) {
             e.printStackTrace();
             try {
                 String codeStatus = "500 Internal Server Error";
-                out.println("HTTP/1.1 " + codeStatus);
-                out.println("Server: Java HTTP Server from Capucine and Arthur : 1.0");
-                out.println("Date: " + new Date());
-                out.println();
-                out.flush();
+                printHeader("", codeStatus, -1, out, "");
+
             } catch (Exception ex) {
                 ex.printStackTrace();
             }
@@ -381,54 +295,61 @@ public class WebServer {
     }
 
 
-    public void executeDELETEmethod(BufferedInputStream in, PrintWriter out, BufferedOutputStream dataOut, String fileName) {
+    public void executeDELETEmethod(BufferedInputStream in, BufferedOutputStream dataOut, String fileName, PrintWriter out) {
         try {
             String codeStatus = "";
             File file = new File(fileName);
             boolean alreadyHere = file.exists();
+            // succes de la suppresion fu fichier
             boolean success = false;
-            if(alreadyHere && file.isFile())
+            // affiche une page d'erreur si le fichier n'a pas été trouvé ou si le fichier est protégé
+            String print = "";
+            if (alreadyHere && file.isFile())
                 success = file.delete();
-
-
 
 
             if (!alreadyHere) {
                 codeStatus = "404 Not found";
-            } else if(success){
+                print = "404";
+            } else if (success) {
                 codeStatus = "204 No Content";
             } else {
                 codeStatus = "403 Forbidden";
+                print = "403";
             }
 
             // creation du header
-            out.println("HTTP/1.1 " + codeStatus);
-            out.println("Server: Java HTTP Server from Capucine and Arthur : 1.0");
-            out.println("Date: " + new Date());
+            String fileNameError = "";
+            printHeader("", codeStatus, -1, out, "");
+            switch (print) {
+                case "404":
+                    fileNameError = INIT_DIR + "errorNonTrouve.html";
+                    break;
+                case "403":
+                    fileNameError = INIT_DIR + "errorAccesInterdit.html";
+                    break;
+                default:
+                    break;
 
-            out.println();
-            out.flush();
-
+            }
+            if (!fileNameError.equals("")) {
+                File fileError = new File(fileNameError);
+                byte[] fileData = readData(fileError);
+                dataOut.write(fileData, 0, (int) fileError.length());
+                dataOut.flush();
+            }
 
         } catch (Exception e) {
             e.printStackTrace();
             try {
                 String codeStatus = "500 Internal Server Error";
-                out.println("HTTP/1.1 " + codeStatus);
-                out.println("Server: Java HTTP Server from Capucine and Arthur : 1.0");
-                out.println("Date: " + new Date());
-                out.println();
-                out.flush();
+                printHeader("", codeStatus, -1, out, "");
             } catch (Exception ex) {
                 ex.printStackTrace();
             }
             ;
         }
     }
-
-
-
-
 
 
     private void writeFileData(File file, byte[] fileData, boolean exists) throws IOException {
@@ -462,6 +383,58 @@ public class WebServer {
         }
         System.out.println(headers);
         return headers;
+    }
+
+
+    public File buildHeaderPutAndPost(BufferedInputStream in, String fileName, PrintWriter out, boolean put) {
+        File file = null;
+        try {
+            String codeStatus = "";
+            file = new File(fileName);
+            boolean alreadyHere = file.exists();
+            // si la méthode est appelé pour construire le header d'une méthode put on écrase le fichier
+
+            if (put) {
+                FileWriter ecrasement = new FileWriter(file);
+                ecrasement.close();
+            }
+
+            List<Byte> fileData = new ArrayList<>();
+            while (in.available() > 0) {
+                fileData.add((byte) in.read());
+            }
+
+            byte[] fileDataArray = new byte[fileData.size()];
+            for (int i = 0; i < fileData.size(); i++) {
+                fileDataArray[i] = fileData.get(i);
+            }
+            writeFileData(file, fileDataArray, alreadyHere);
+
+            if (!put && alreadyHere) {
+                codeStatus = "200 OK";
+            } else if (put && alreadyHere) {
+                codeStatus = "204 No content";
+            } else {
+                codeStatus = "201 Created";
+            }
+
+            // creation du header
+            printHeader("", codeStatus, -1, out, "");
+            // on affiche le fichier dans lequel on a ecrit dans le body
+
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            try {
+                String codeStatus = "500 Internal Server Error";
+                printHeader("", codeStatus, -1, out, "");
+
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
+
+        }
+        return file;
     }
 
 
