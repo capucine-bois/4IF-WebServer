@@ -142,7 +142,7 @@ public class WebServer {
     public void executeDELETEmethod(BufferedOutputStream dataOut, String fileName, PrintWriter out) {
         try {
             String codeStatus;
-            File file = new File(fileName);
+            File file = new File(INIT_DIR + fileName);
             boolean alreadyHere = file.exists();
             // succes de la suppresion fu fichier
             boolean success = false;
@@ -321,6 +321,9 @@ public class WebServer {
                 break;
             case "html":
                 type = "text/html";
+                break;
+            case "mp3" :
+                type = "audio/mp3";
                 break;
             default:
                 type = "text/plain";

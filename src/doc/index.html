@@ -5,15 +5,25 @@
     <title>Title</title>
 </head>
 <body>
-<H1>ça marche</H1>
-</body>
-</html><!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Title</title>
-</head>
-<body>
-<H1>ça marche</H1>
+<H1>Accueil</H1>
+<h4>Description du fonctionnement de l'application</h4>
+<p>Notre serveur prend en compte différente méthode HTTP :</p>
+<ul>
+    <li>GET : affichage de la ressource spécifiée dans l'URL si elle existe ainsi qu'un entête reprenant les informations de la réponse</li>
+    <li>HEAD : même principe que la méthode GET mais sans afficher la ressource dans la page (affichage seulement de l'entête)</li>
+    <li>PUT : on écrase ou crée la ressource passée en paramètre avec le corps de la réponse du client</li>
+    <li>POST : on écrit à la suite ou on crée la ressource passé en paramètre avec le corps de la réponse du client. On affiche également au client le fichier modifié dans le corps de la réponse.</li>
+    <li>DELETE : on supprime si possible la ressource indiquée en paramètre</li>
+</ul>
+<br>
+<p>Plusieurs affichages sont possible pour répondre à la requête du clients :</p>
+<ul>
+    <li>Affichage de la ressource</li>
+    <li>Affichage de l'index si aucune ressource spécifiée lors de l'utilisation d'une méthode GET</li>
+    <li>Une page d'erreur si la ressource n'existe pas pour les méthodes DELETE et GET</li>
+    <li>Une page d'erreur si la ressource est protégée pour la méthode DELETE</li>
+</ul>
+<br>
+<p>Les types de ressources à afficher sont les images, les vidéos, les ressources audio et textes.</p>
 </body>
 </html>
