@@ -39,19 +39,19 @@ public class WebServer {
                 // le buffer dans lequel on écrit le body qu'on affiche au client
                 BufferedOutputStream dataOut = new BufferedOutputStream(socketClient.getOutputStream());
 
-                List<String> headers = parseHTTPHeaders(in);
+                List<String> header = getHeaderFromClient(in);
 
                 // Affichage du header de la requête du client
                 System.out.println("Request Header:");
-                System.out.println(headers.get(0));
+                System.out.println(header.get(0));
 
                 // Récupération de la méthode et de la ressource
-                StringTokenizer parse = new StringTokenizer(headers.get(0));
+                StringTokenizer parse = new StringTokenizer(header.get(0));
                 String methodRequested = parse.nextToken().toUpperCase();
                 String resourceRequested = parse.nextToken().toLowerCase().substring(1);
 
 
-                if (!headers.isEmpty()) {
+                if (!header.isEmpty()) {
                     System.out.println("on rentre dans le switch");
                     switch (methodRequested) {
                         case "GET":
@@ -196,105 +196,23 @@ public class WebServer {
         out.flush();
     }
 
-
     // Execution de la méthode post
     public void executePOSTmethod(BufferedInputStream in, BufferedOutputStream dataOut, String fileName, PrintWriter out) throws IOException {
+        // création du header et renvoie du fichier modifié/créé pour l'afficher. Le booléen indique si
+        // la méthode appelante est put ou post, put nécessitant l'écrasement du fichier
         File file = buildHeaderPutAndPost(in, fileName, out, false);
         byte[] fileDataToPrint = readData(file);
         dataOut.write(fileDataToPrint, 0, (int) file.length());
         dataOut.flush();
     }
-    /*public void executePOSTmethod(BufferedInputStream in, BufferedOutputStream dataOut, String fileName, PrintWriter out) {
-        try {
-            String codeStatus = "";
-            File file = new File(fileName);
-            boolean alreadyHere = file.exists();
-            List<Byte> fileData = new ArrayList<>();
-            while (in.available() > 0) {
-                fileData.add((byte) in.read());
-            }
 
-            byte[] fileDataArray = new byte[fileData.size()];
-            for (int i = 0; i < fileData.size(); i++) {
-                fileDataArray[i] = fileData.get(i);
-            }
-            writeFileData(file, fileDataArray, alreadyHere);
-
-            if (alreadyHere) {
-                codeStatus = "200 OK";
-            } else {
-                codeStatus = "201 Created";
-            }
-            // creation du header
-            printHeader("", codeStatus, -1, out, "");
-            // on affiche le fichier dans lequel on a ecrit dans le body
-            byte[] fileDataToPrint = readData(file);
-            dataOut.write(fileDataToPrint, 0, (int) file.length());
-            dataOut.flush();
-
-        } catch (Exception e) {
-            e.printStackTrace();
-            try {
-                String codeStatus = "500 Internal Server Error";
-                printHeader("", codeStatus, -1, out, "");
-
-            } catch (Exception ex) {
-                ex.printStackTrace();
-            }
-
-        }
-    }*/
-
-
-    //public void executePUTmethod() {}
-
+    // Execution de la methode put
     public void executePUTmethod(BufferedInputStream in, BufferedOutputStream dataOut, String fileName, PrintWriter out) {
-        try {
-            String codeStatus = "";
-            File file = new File(fileName);
-            boolean alreadyHere = file.exists();
-
-            FileWriter ecrasement = new FileWriter(file);
-            ecrasement.close();
-
-
-            List<Byte> fileData = new ArrayList<>();
-            while (in.available() > 0) {
-                fileData.add((byte) in.read());
-            }
-
-            byte[] fileDataArray = new byte[fileData.size()];
-            for (int i = 0; i < fileData.size(); i++) {
-                fileDataArray[i] = fileData.get(i);
-            }
-            writeFileData(file, fileDataArray, alreadyHere);
-
-            if (alreadyHere) {
-                codeStatus = "204 No content";
-            } else {
-                codeStatus = "201 Created";
-            }
-            // creation du header
-            printHeader("", codeStatus, -1, out, "");
-            // on affiche le fichier dans lequel on a ecrit dans le body
-            byte[] fileDataToPrint = readData(file);
-            dataOut.write(fileDataToPrint, 0, (int) file.length());
-            dataOut.flush();
-
-        } catch (Exception e) {
-            e.printStackTrace();
-            try {
-                String codeStatus = "500 Internal Server Error";
-                printHeader("", codeStatus, -1, out, "");
-
-            } catch (Exception ex) {
-                ex.printStackTrace();
-            }
-            ;
-        }
+        // création du header et écrasement du fichier
+        buildHeaderPutAndPost(in, fileName, out, true);
     }
 
-
+    // execution de la méthode delete
     public void executeDELETEmethod(BufferedInputStream in, BufferedOutputStream dataOut, String fileName, PrintWriter out) {
         try {
             String codeStatus = "";
@@ -304,23 +222,24 @@ public class WebServer {
             boolean success = false;
             // affiche une page d'erreur si le fichier n'a pas été trouvé ou si le fichier est protégé
             String print = "";
+            // la ressource était présente et la ressource est un fichier
             if (alreadyHere && file.isFile())
                 success = file.delete();
-
-
+            // si le fichier n'était pas présent 
             if (!alreadyHere) {
                 codeStatus = "404 Not found";
                 print = "404";
             } else if (success) {
                 codeStatus = "204 No Content";
             } else {
+                // si le fichier existe mais ne peut pas être supprimé
                 codeStatus = "403 Forbidden";
                 print = "403";
             }
-
             // creation du header
             String fileNameError = "";
             printHeader("", codeStatus, -1, out, "");
+            // s'il y a une erreur on affiche une page d'erreur selon l'erreur détectée 
             switch (print) {
                 case "404":
                     fileNameError = INIT_DIR + "errorNonTrouve.html";
@@ -330,8 +249,8 @@ public class WebServer {
                     break;
                 default:
                     break;
-
             }
+            // si une erreur est détectée on affiche la page d'erreur correspondante
             if (!fileNameError.equals("")) {
                 File fileError = new File(fileNameError);
                 byte[] fileData = readData(fileError);
@@ -350,39 +269,38 @@ public class WebServer {
             ;
         }
     }
-
-
-    private void writeFileData(File file, byte[] fileData, boolean exists) throws IOException {
-        FileOutputStream fileOut = null;
+    
+    // on écrit les données récupérées au format byte pour les insérer dans le fichier en paramètre
+    private void writeData(File file, byte[] fileData, boolean exists) throws IOException {
+        FileOutputStream fileToModif = null;
         try {
-            fileOut = new FileOutputStream(file, exists);
-            fileOut.write(fileData);
+            fileToModif = new FileOutputStream(file, exists);
+            fileToModif.write(fileData);
         } catch (Exception e) {
             e.printStackTrace();
         } finally {
-            if (fileOut != null) fileOut.close();
+            if (fileToModif != null) fileToModif.close();
         }
     }
-
-
-    public List<String> parseHTTPHeaders(BufferedInputStream in) throws IOException {
+    
+    public List<String> getHeaderFromClient(BufferedInputStream in) throws IOException {
         int charRead = in.read();
-        List<String> headers = new ArrayList<>();
-        StringBuilder stringBuilder = new StringBuilder();
+        List<String> listeHeader = new ArrayList<>();
+        StringBuilder header = new StringBuilder();
         while (charRead != -1) {
-            stringBuilder.append((char) charRead);
-            if (stringBuilder.toString().endsWith("\r\n")) {
-                if (stringBuilder.toString().equals("\r\n")) {
+            header.append((char) charRead);
+            if (header.toString().endsWith("\r\n")) {
+                if (header.toString().equals("\r\n")) {
                     break;
                 } else {
-                    headers.add(stringBuilder.substring(0, stringBuilder.toString().lastIndexOf("\r\n")));
-                    stringBuilder = new StringBuilder();
+                    listeHeader.add(header.substring(0, header.toString().lastIndexOf("\r\n")));
+                    header = new StringBuilder();
                 }
             }
             charRead = in.read();
         }
-        System.out.println(headers);
-        return headers;
+        System.out.println(listeHeader);
+        return listeHeader;
     }
 
 
@@ -408,7 +326,7 @@ public class WebServer {
             for (int i = 0; i < fileData.size(); i++) {
                 fileDataArray[i] = fileData.get(i);
             }
-            writeFileData(file, fileDataArray, alreadyHere);
+            writeData(file, fileDataArray, alreadyHere);
 
             if (!put && alreadyHere) {
                 codeStatus = "200 OK";
