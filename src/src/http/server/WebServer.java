@@ -39,18 +39,16 @@ public class WebServer {
                 BufferedOutputStream dataOut = new BufferedOutputStream(socketClient.getOutputStream());
 
                 List<String> header = getHeaderFromClient(in);
-
-                // Affichage du header de la requête du client
-                System.out.println("Request Header:");
-                System.out.println(header.get(0));
-
-                // Récupération de la méthode et de la ressource
-                StringTokenizer parse = new StringTokenizer(header.get(0));
-                String methodRequested = parse.nextToken().toUpperCase();
-                String resourceRequested = parse.nextToken().toLowerCase().substring(1);
-
-
                 if (!header.isEmpty()) {
+                    // Affichage du header de la requête du client
+                    System.out.println("Request Header:");
+                    System.out.println(header.get(0));
+
+                    // Récupération de la méthode et de la ressource
+                    StringTokenizer parse = new StringTokenizer(header.get(0));
+                    String methodRequested = parse.nextToken().toUpperCase();
+                    String resourceRequested = parse.nextToken().toLowerCase().substring(1);
+
                     switch (methodRequested) {
                         case "GET":
                             executeGETmethod(resourceRequested, dataOut, out);
@@ -70,8 +68,12 @@ public class WebServer {
                             //erreur
                             break;
                     }
+                    dataOut.flush();
+                } else {
+                    printHeader("", "404 Bad Request", -1, out, "");
                 }
-                dataOut.flush();
+
+
                 socketClient.close();
             } catch (Exception e) {
                 e.printStackTrace();
@@ -82,9 +84,9 @@ public class WebServer {
     // lecture du header envoyé par le client
     public List<String> getHeaderFromClient(BufferedInputStream in) throws IOException {
         List<String> listeHeader = new ArrayList<>();
-        String header = "";
         int lecteur = in.read();
         // tant que la lecture du fichier n'est pas terminée
+        String header = "";
         while (lecteur != -1) {
             // on ajoute le caractère à la fin du strinBuilder
             header += (char) lecteur;
@@ -101,6 +103,8 @@ public class WebServer {
             lecteur = in.read();
         }
         System.out.println(listeHeader);
+
+
         return listeHeader;
     }
 
@@ -112,7 +116,7 @@ public class WebServer {
         File file = buildHeaderGetandPost(fileName, out);
         byte[] fileData = readData(file);
         dataOut.write(fileData, 0, (int) file.length());
-        dataOut.flush();
+        //dataOut.flush();
 
     }
 
@@ -231,7 +235,7 @@ public class WebServer {
         File file = null;
         try {
             String codeStatus;
-            file = new File(fileName);
+            file = new File(INIT_DIR + fileName);
             boolean alreadyHere = file.exists();
             // si la méthode est appelé pour construire le header d'une méthode put on écrase le fichier
 
@@ -322,7 +326,7 @@ public class WebServer {
             case "html":
                 type = "text/html";
                 break;
-            case "mp3" :
+            case "mp3":
                 type = "audio/mp3";
                 break;
             default:
