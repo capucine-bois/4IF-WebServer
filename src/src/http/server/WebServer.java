@@ -42,7 +42,9 @@ public class WebServer {
                 if (!header.isEmpty()) {
                     // Affichage du header de la requête du client
                     System.out.println("Request Header:");
-                    System.out.println(header.get(0));
+                    for(int i=0; i<header.size(); i++) {
+                        System.out.println(header.get(i));
+                    }
 
                     // Récupération de la méthode et de la ressource
                     StringTokenizer parse = new StringTokenizer(header.get(0));
@@ -71,9 +73,8 @@ public class WebServer {
                     dataOut.flush();
                 } else {
                     printHeader("", "404 Bad Request", -1, out, "");
+                    dataOut.flush();
                 }
-
-
                 socketClient.close();
             } catch (Exception e) {
                 e.printStackTrace();
@@ -102,9 +103,6 @@ public class WebServer {
             }
             lecteur = in.read();
         }
-        System.out.println(listeHeader);
-
-
         return listeHeader;
     }
 
@@ -113,7 +111,7 @@ public class WebServer {
     public void executeGETmethod(String fileName, BufferedOutputStream dataOut, PrintWriter out) throws IOException {
         // on récupère le fichier à afficher, que ce soit l'index, un html d'erreur ou le fichier spéicifié
         // on construit également le header
-        File file = buildHeaderGetandPost(fileName, out);
+        File file = buildHeaderGetandHead(fileName, out);
         byte[] fileData = readData(file);
         dataOut.write(fileData, 0, (int) file.length());
         //dataOut.flush();
@@ -122,7 +120,7 @@ public class WebServer {
 
     // execute la requete selon la methode head
     public void executeHEADmethod(String fileName, PrintWriter out) throws IOException {
-        buildHeaderGetandPost(fileName, out);
+        buildHeaderGetandHead(fileName, out);
     }
 
 
@@ -131,9 +129,13 @@ public class WebServer {
         // création du header et renvoie du fichier modifié/créé pour l'afficher. Le booléen indique si
         // la méthode appelante est put ou post, put nécessitant l'écrasement du fichier
         File file = buildHeaderPutAndPost(in, fileName, out, false);
+        if (file == null) { // le file est null dans le cas d'un accès interdit
+            file = new File("src/doc/errorAccesInterdit.html");
+        }
         byte[] fileDataToPrint = readData(file);
         dataOut.write(fileDataToPrint, 0, (int) file.length());
         dataOut.flush();
+
     }
 
     // Execution de la methode put
@@ -200,32 +202,46 @@ public class WebServer {
     }
 
     // Construction du header pour les méthodes get et head. Renvoie le fichier à afficher dans le cas de la méthode get
-    public File buildHeaderGetandPost(String fileName, PrintWriter out) throws IOException {
-        // si pas de fichier spécifié, on affiche index.html
-        if (fileName.equals("/") || fileName.equals("")) {
-            fileName = INIT_DIR + "index.html";
-        } else {
-            fileName = INIT_DIR + fileName;
-        }
-        File file = new File(fileName);
-        String codeStatus = "OK 200", extension = "";
-        // on vérifie que le fichier existe, sinon message d'erreur
-        if (!file.exists()) {
-            codeStatus = "404 not found";
-            fileName = INIT_DIR + "errorNonTrouve.html";
+    public File buildHeaderGetandHead(String fileName, PrintWriter out) throws IOException {
+        File file = null;
+        try {
+            // si pas de fichier spécifié, on affiche index.html
+            if (fileName.equals("/") || fileName.equals("")) {
+                fileName = INIT_DIR + "index.html";
+            } else {
+                fileName = INIT_DIR + fileName;
+            }
             file = new File(fileName);
-        }
-        int fileLength = (int) file.length();
-        int extensionPos = fileName.lastIndexOf('.');
-        if (extensionPos > 0) {
-            extension = fileName.substring(extensionPos + 1);
-        } else { // pas sûr de vraiment pouvoir passer là
-            codeStatus = "404 not found";
+            String codeStatus = "200 OK", extension = "";
+            // on vérifie que le fichier existe, sinon message d'erreur
+            if (!file.exists()) {
+                codeStatus = "404 not found";
+                fileName = INIT_DIR + "errorNonTrouve.html";
+                file = new File(fileName);
+            }
+            int fileLength = (int) file.length();
+            int extensionPos = fileName.lastIndexOf('.');
+            if (extensionPos > 0) {
+                extension = fileName.substring(extensionPos + 1);
+            } else { // pas sûr de vraiment pouvoir passer là
+                codeStatus = "404 not found";
+            }
+
+            String content = getTypeFromExtension(extension);
+            // on affiche le headerr avec les infos récolotées
+            printHeader(content, codeStatus, fileLength, out, fileName);
+        } catch (Exception e) {
+            e.printStackTrace();
+            try {
+                String codeStatus = "500 Internal Server Error";
+                printHeader("", codeStatus, -1, out, "");
+
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
+
         }
 
-        String content = getTypeFromExtension(extension);
-        // on affiche le headerr avec les infos récolotées
-        printHeader(content, codeStatus, fileLength, out, fileName);
 
         return file;
     }
@@ -239,10 +255,6 @@ public class WebServer {
             boolean alreadyHere = file.exists();
             // si la méthode est appelé pour construire le header d'une méthode put on écrase le fichier
 
-            if (put) {
-                FileWriter ecrasement = new FileWriter(file);
-                ecrasement.close();
-            }
 
             List<Byte> fileData = new ArrayList<>();
             while (in.available() > 0) {
@@ -253,14 +265,24 @@ public class WebServer {
             for (int i = 0; i < fileData.size(); i++) {
                 fileDataArray[i] = fileData.get(i);
             }
-            writeData(file, fileDataArray, alreadyHere);
-
-            if (!put && alreadyHere) {
-                codeStatus = "200 OK";
-            } else if (put && alreadyHere) {
-                codeStatus = "204 No content";
+            int erreur = 0;
+            if(!put) {
+                erreur = writeData(file, fileDataArray, alreadyHere);
             } else {
-                codeStatus = "201 Created";
+                erreur = writeData(file, fileDataArray, false);
+            }
+
+            if (erreur == 1) {
+                codeStatus = "403 Forbidden";
+                file = null;
+            } else {
+                if (!put && alreadyHere) {
+                    codeStatus = "200 OK";
+                } else if (put && alreadyHere) {
+                    codeStatus = "204 No content";
+                } else {
+                    codeStatus = "201 Created";
+                }
             }
 
             // creation du header
@@ -352,12 +374,15 @@ public class WebServer {
     }
 
     // on écrit les données récupérées au format byte pour les insérer dans le fichier en paramètre
-    private void writeData(File file, byte[] fileData, boolean exists) {
+    private int writeData(File file, byte[] fileData, boolean exists) {
+        int erreur = 0;
         try (FileOutputStream fileToModif = new FileOutputStream(file, exists)) {
             fileToModif.write(fileData);
-        } catch (Exception e) {
+        } catch (Exception e) { // si on ne peut pas écrire, accès interdit, on affichera une page d'erreur
+            erreur = 1;
             e.printStackTrace();
         }
+        return erreur;
     }
 
 
